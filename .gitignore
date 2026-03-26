@@ -123,6 +123,8 @@ celerybeat.pid
 
 # Environments
 .env
+**/.env
+*.env
 .venv
 env/
 venv/
@@ -158,6 +160,9 @@ cython_debug/
 
 # PyCharm
 .idea/
+
+# VS Code / Cursor
+.vscode/
 
 # Added this to ignore models downloaded from HF
 model_cache/
