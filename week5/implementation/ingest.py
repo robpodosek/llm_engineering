@@ -8,7 +8,7 @@ import os
 import glob
 from pathlib import Path
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import OpenAIEmbeddings
@@ -50,7 +50,8 @@ def create_chunks(documents: list[Document]) -> list[Document]:
     Split a list of documents into smaller chunks for better retrieval performance.
     Uses RecursiveCharacterTextSplitter with fixed chunk size and overlap.
     """
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200)
+    # text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=200)
+    text_splitter = MarkdownTextSplitter(chunk_size=500, chunk_overlap=200)
     chunks = text_splitter.split_documents(documents)
     return chunks
 

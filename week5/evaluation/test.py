@@ -15,7 +15,13 @@ class TestQuestion(BaseModel):
 
 
 def load_tests() -> list[TestQuestion]:
-    """Load test questions from JSONL file."""
+    """
+    Load test questions from a JSON Lines (JSONL) file.
+    
+    Each line in the JSONL file represents a single TestQuestion object
+    containing the question, expected keywords, reference answer, and category.
+    This function parses the file line-by-line and returns a list of TestQuestion instances.
+    """
     tests = []
     with open(TEST_FILE, "r", encoding="utf-8") as f:
         for line in f:

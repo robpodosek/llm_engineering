@@ -42,7 +42,15 @@ class AnswerEval(BaseModel):
 
 
 def calculate_mrr(keyword: str, retrieved_docs: list) -> float:
-    """Calculate reciprocal rank for a single keyword (case-insensitive)."""
+    """
+    Calculate Mean Reciprocal Rank (MRR) for a single keyword (case-insensitive).
+    
+    MRR evaluates the position of the first relevant document.
+    It returns 1/rank if the keyword is found in a document, where 'rank' is the 
+    1-based index of that document in the retrieved list. If the keyword is not 
+    found in any document, it returns 0.0. A higher score means the relevant 
+    information appeared higher in the search results.
+    """
     keyword_lower = keyword.lower()
     for rank, doc in enumerate(retrieved_docs, start=1):
         if keyword_lower in doc.page_content.lower():
@@ -51,7 +59,13 @@ def calculate_mrr(keyword: str, retrieved_docs: list) -> float:
 
 
 def calculate_dcg(relevances: list[int], k: int) -> float:
-    """Calculate Discounted Cumulative Gain."""
+    """
+    Calculate Discounted Cumulative Gain (DCG).
+    
+    DCG measures the usefulness (gain) of a document based on its position in the 
+    result list. It penalizes highly relevant documents that appear lower in the 
+    search results by logarithmically discounting their relevance score based on their rank.
+    """
     dcg = 0.0
     for i in range(min(k, len(relevances))):
         dcg += relevances[i] / math.log2(i + 2)  # i+2 because rank starts at 1
@@ -59,7 +73,15 @@ def calculate_dcg(relevances: list[int], k: int) -> float:
 
 
 def calculate_ndcg(keyword: str, retrieved_docs: list, k: int = 10) -> float:
-    """Calculate nDCG for a single keyword (binary relevance, case-insensitive)."""
+    """
+    Calculate Normalized Discounted Cumulative Gain (nDCG) for a single keyword.
+    
+    nDCG normalizes the DCG score to a value between 0.0 and 1.0. 
+    It calculates the actual DCG based on binary relevance (1 if keyword is found, 0 otherwise)
+    and divides it by the Ideal DCG (IDCG), which is the DCG if the results were 
+    perfectly sorted (e.g., the keyword was found in the very first document).
+    This metric is useful because it allows comparing search performance across different queries.
+    """
     keyword_lower = keyword.lower()
 
     # Binary relevance: 1 if keyword found, 0 otherwise
