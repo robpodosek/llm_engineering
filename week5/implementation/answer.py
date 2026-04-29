@@ -1,3 +1,9 @@
+"""
+This module provides the core logic for answering user questions using RAG.
+It retrieves relevant context from a ChromaDB vector store and uses an
+OpenAI model to generate a grounded response.
+"""
+
 from pathlib import Path
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
@@ -33,14 +39,15 @@ llm = ChatOpenAI(temperature=0, model_name=MODEL)
 
 def fetch_context(question: str) -> list[Document]:
     """
-    Retrieve relevant context documents for a question.
+    Retrieve relevant context documents for a question from the vector store.
     """
     return retriever.invoke(question, k=RETRIEVAL_K)
 
 
 def combined_question(question: str, history: list[dict] = []) -> str:
     """
-    Combine all the user's messages into a single string.
+    Combine the current question with previous user messages from the history.
+    This helps provide context to the retriever for follow-up questions.
     """
     prior = "\n".join(m["content"] for m in history if m["role"] == "user")
     return prior + "\n" + question
@@ -48,7 +55,12 @@ def combined_question(question: str, history: list[dict] = []) -> str:
 
 def answer_question(question: str, history: list[dict] = []) -> tuple[str, list[Document]]:
     """
-    Answer the given question with RAG; return the answer and the context documents.
+    Perform a complete RAG pipeline:
+    1. Combine history for context.
+    2. Retrieve relevant documents.
+    3. Generate a response using the LLM and the retrieved context.
+    
+    Returns a tuple of (answer_text, source_documents).
     """
     combined = combined_question(question, history)
     docs = fetch_context(combined)
