@@ -30,6 +30,30 @@ def main():
 
     with gr.Blocks(title="Insurellm Expert Assistant", theme=theme) as ui:
         gr.Markdown("# 🏢 Insurellm Expert Assistant\nAsk me anything about Insurellm!")
+        
+        with gr.Accordion("📖 How to use", open=False):
+            gr.Markdown("""
+            ### Welcome to the Insurellm Expert Assistant!
+            This tool helps you navigate Insurellm's internal documentation using AI.
+
+            *   **Ask a Question:** Type your query about policies or procedures in the text box below and press **Enter**.
+            *   **Knowledge Retrieval:** The assistant searches the internal `knowledge-base` to find the most relevant information.
+            *   **Verify Sources:** The right-hand panel (**Retrieved Context**) shows the exact document snippets and sources used to generate the answer.
+            *   **Best Results:** Be specific! Mentioning policy numbers or specific terms helps the assistant find the right context.
+
+            ---
+            ### 🚀 Running the Application
+            If you are setting this up for the first time or have updated the knowledge base:
+
+            1.  **Ingest Data:** Run the ingestion script to build the vector database:
+                ```bash
+                uv run implementation/ingest.py
+                ```
+            2.  **Start the App:** Launch this interface:
+                ```bash
+                uv run app.py
+                ```
+            """)
 
         with gr.Row():
             with gr.Column(scale=1):
