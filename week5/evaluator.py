@@ -1,3 +1,14 @@
+"""
+RAG System Evaluation Dashboard
+
+This module provides a Gradio-based interactive web interface for evaluating the
+performance of the Insurellm RAG system. It offers two primary evaluation tracks:
+1. Retrieval Evaluation: Measures how well the vector store finds relevant context (MRR, nDCG).
+2. Answer Evaluation: Uses an LLM-as-a-judge to score generated answers (Accuracy, Completeness, Relevance).
+
+The dashboard visualizes results using color-coded HTML cards and pandas-backed bar charts.
+"""
+
 import gradio as gr
 import pandas as pd
 from collections import defaultdict
@@ -21,7 +32,20 @@ ANSWER_AMBER = 4.0
 
 
 def get_color(value: float, metric_type: str) -> str:
-    """Get color based on metric value and type."""
+    """
+    Determine the display color for a metric based on predefined thresholds.
+    
+    This function applies traffic-light color coding (green, orange, red) to evaluation metrics 
+    to provide immediate visual feedback on performance. Different metrics have different 
+    acceptable thresholds (e.g., MRR >= 0.9 is green, whereas Answer scores >= 4.5 are green).
+
+    Args:
+        value (float): The calculated score for the metric.
+        metric_type (str): The type of metric being evaluated (e.g., 'mrr', 'ndcg', 'accuracy').
+
+    Returns:
+        str: A string representing the HTML color code ('green', 'orange', 'red', or 'black').
+    """
     if metric_type == "mrr":
         if value >= MRR_GREEN:
             return "green"
@@ -60,7 +84,22 @@ def format_metric_html(
     is_percentage: bool = False,
     score_format: bool = False,
 ) -> str:
-    """Format a metric with color coding."""
+    """
+    Format an evaluation metric into a styled HTML component for the Gradio dashboard.
+
+    Constructs a visual card displaying the metric label and its value, styled with a
+    border color indicating performance quality (calculated via get_color).
+
+    Args:
+        label (str): The human-readable name of the metric (e.g., 'Mean Reciprocal Rank').
+        value (float): The numerical value of the metric.
+        metric_type (str): The type of metric (e.g., 'mrr', 'accuracy') used for color thresholding.
+        is_percentage (bool, optional): If True, formats the value as a percentage. Defaults to False.
+        score_format (bool, optional): If True, formats the value as a score out of 5. Defaults to False.
+
+    Returns:
+        str: An HTML string representing the styled metric card.
+    """
     color = get_color(value, metric_type)
     if is_percentage:
         value_str = f"{value:.1f}%"
@@ -77,7 +116,22 @@ def format_metric_html(
 
 
 def run_retrieval_evaluation(progress=gr.Progress()):
-    """Run retrieval evaluation and yield updates."""
+    """
+    Execute the retrieval evaluation pipeline and yield progressive updates to the UI.
+
+    This function iterates through all test cases, calculating MRR, nDCG, and keyword coverage 
+    for each retrieval operation. It tracks progress using Gradio's Progress component and 
+    aggregates scores by category for charting.
+
+    Args:
+        progress (gr.Progress, optional): Gradio progress tracker. Automatically injected by Gradio.
+
+    Returns:
+        tuple[str, pd.DataFrame]: A tuple containing:
+            - An HTML string representing the final summarized metric cards.
+            - A pandas DataFrame containing average MRR scores broken down by test category, 
+              used to render the bar chart.
+    """
     total_mrr = 0.0
     total_ndcg = 0.0
     total_coverage = 0.0
@@ -124,7 +178,22 @@ def run_retrieval_evaluation(progress=gr.Progress()):
 
 
 def run_answer_evaluation(progress=gr.Progress()):
-    """Run answer evaluation and yield updates (async)."""
+    """
+    Execute the LLM-as-a-judge answer evaluation pipeline and yield progressive updates.
+
+    This function evaluates generated answers against expected responses across three dimensions:
+    Accuracy, Completeness, and Relevance (scored 1-5). It updates the UI progressively and
+    calculates aggregate scores by test category.
+
+    Args:
+        progress (gr.Progress, optional): Gradio progress tracker. Automatically injected by Gradio.
+
+    Returns:
+        tuple[str, pd.DataFrame]: A tuple containing:
+            - An HTML string representing the final summarized metric cards.
+            - A pandas DataFrame containing average Accuracy scores broken down by test category, 
+              used to render the bar chart.
+    """
     total_accuracy = 0.0
     total_completeness = 0.0
     total_relevance = 0.0
@@ -171,7 +240,13 @@ def run_answer_evaluation(progress=gr.Progress()):
 
 
 def main():
-    """Launch the Gradio evaluation app."""
+    """
+    Initialize and launch the Gradio evaluation dashboard.
+
+    Sets up the UI layout using Gradio Blocks, organizing the interface into Retrieval 
+    and Answer evaluation sections. It wires up the run buttons to their respective 
+    evaluation functions, mapping the outputs to HTML displays and BarPlots.
+    """
     theme = gr.themes.Soft(font=["Inter", "system-ui", "sans-serif"])
 
     with gr.Blocks(title="RAG Evaluation Dashboard", theme=theme) as app:
