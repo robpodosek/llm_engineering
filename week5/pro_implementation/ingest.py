@@ -27,11 +27,19 @@ openai = OpenAI()
 
 
 class Result(BaseModel):
+    """
+    Represents a chunk of processed text ready for vector storage.
+    Includes the actual content and its associated metadata.
+    """
     page_content: str
     metadata: dict
 
 
 class Chunk(BaseModel):
+    """
+    Structured model for individual document chunks parsed by the LLM.
+    Ensures that each chunk has a descriptive headline, summary, and unmodified original text.
+    """
     headline: str = Field(
         description="A brief heading for this chunk, typically a few words, that is most likely to be surfaced in a query",
     )
@@ -51,12 +59,18 @@ class Chunk(BaseModel):
 
 
 class Chunks(BaseModel):
+    """
+    Wrapper model representing a collection of Chunk objects returned by the LLM.
+    """
     chunks: list[Chunk]
 
 
 def fetch_documents():
-    """A homemade version of the LangChain DirectoryLoader"""
-
+    """
+    Iterates through the knowledge base directory, reading all Markdown (*.md) files.
+    Returns a list of dictionaries containing file type, source path, and raw text.
+    A homemade version of the LangChain DirectoryLoader.
+    """
     documents = []
 
     for folder in KNOWLEDGE_BASE_PATH.iterdir():
@@ -70,6 +84,10 @@ def fetch_documents():
 
 
 def make_prompt(document):
+    """
+    Constructs the prompt for the LLM to split a document into logical, overlapping chunks.
+    Calculates a recommended number of chunks based on the AVERAGE_CHUNK_SIZE.
+    """
     how_many = (len(document["text"]) // AVERAGE_CHUNK_SIZE) + 1
     return f"""
 You take a document and you split the document into overlapping chunks for a KnowledgeBase.
@@ -95,6 +113,9 @@ Respond with the chunks.
 
 
 def make_messages(document):
+    """
+    Creates the message payload (list of dicts) required for the LiteLLM API request.
+    """
     return [
         {"role": "user", "content": make_prompt(document)},
     ]
@@ -102,6 +123,11 @@ def make_messages(document):
 
 @retry(wait=wait)
 def process_document(document):
+    """
+    Calls the LLM to process a single document into structured chunks.
+    Validates the JSON response into the Chunks model, then converts them to Result format.
+    Decorated with a retry mechanism to handle rate limits or transient errors.
+    """
     messages = make_messages(document)
     response = completion(model=MODEL, messages=messages, response_format=Chunks)
     reply = response.choices[0].message.content
@@ -111,7 +137,8 @@ def process_document(document):
 
 def create_chunks(documents):
     """
-    Create chunks using a number of workers in parallel.
+    Process multiple documents in parallel using multiprocessing.
+    Applies the `process_document` LLM extraction to each text.
     If you get a rate limit error, set the WORKERS to 1.
     """
     chunks = []
@@ -122,10 +149,17 @@ def create_chunks(documents):
 
 
 def create_embeddings(chunks):
+    """
+    Generates vector embeddings for all provided chunks using OpenAI's embedding model.
+    Stores the chunks, metadata, and embeddings in a local ChromaDB collection.
+    Automatically resets the 'docs' collection if it already exists.
+    """
     chroma = PersistentClient(path=DB_NAME)
+    # Reset collection if it already exists to avoid duplicates
     if collection_name in [c.name for c in chroma.list_collections()]:
         chroma.delete_collection(collection_name)
 
+    # Extract text content from chunk objects
     texts = [chunk.page_content for chunk in chunks]
     emb = openai.embeddings.create(model=embedding_model, input=texts).data
     vectors = [e.embedding for e in emb]
@@ -135,6 +169,7 @@ def create_embeddings(chunks):
     ids = [str(i) for i in range(len(chunks))]
     metas = [chunk.metadata for chunk in chunks]
 
+    # Add all documents and their embeddings to the vector database
     collection.add(ids=ids, embeddings=vectors, documents=texts, metadatas=metas)
     print(f"Vectorstore created with {collection.count()} documents")
 

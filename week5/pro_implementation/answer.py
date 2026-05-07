@@ -10,7 +10,6 @@ from tenacity import retry, wait_exponential
 load_dotenv(override=True)
 
 MODEL = "openai/gpt-4.1-nano"
-# MODEL = "groq/openai/gpt-oss-120b"
 DB_NAME = str(Path(__file__).parent.parent / "preprocessed_db")
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge-base"
 SUMMARIES_PATH = Path(__file__).parent.parent / "summaries"
@@ -40,11 +39,19 @@ With this context, please answer the user's question. Be accurate, relevant and 
 
 
 class Result(BaseModel):
+    """
+    Represents a retrieved document chunk from the vector database.
+    Contains the text content and associated metadata.
+    """
     page_content: str
     metadata: dict
 
 
 class RankOrder(BaseModel):
+    """
+    Structured model for the LLM response when re-ranking retrieved chunks.
+    Ensures the response is a simple list of integers representing the optimal order.
+    """
     order: list[int] = Field(
         description="The order of relevance of chunks, from most relevant to least relevant, by chunk id number"
     )
@@ -52,6 +59,11 @@ class RankOrder(BaseModel):
 
 @retry(wait=wait)
 def rerank(question, chunks):
+    """
+    Uses the LLM to re-rank a list of retrieved chunks based on their actual 
+    relevance to the user's specific question.
+    Returns the reordered list of chunks.
+    """
     system_prompt = """
 You are a document re-ranker.
 You are provided with a question and a list of relevant chunks of text from a query of a knowledge base.
@@ -75,6 +87,11 @@ Reply only with the list of ranked chunk ids, nothing else. Include all the chun
 
 
 def make_rag_messages(question, history, chunks):
+    """
+    Constructs the final chat message payload for the LLM, incorporating the 
+    system prompt, the retrieved context chunks, conversation history, 
+    and the user's latest question.
+    """
     context = "\n\n".join(
         f"Extract from {chunk.metadata['source']}:\n{chunk.page_content}" for chunk in chunks
     )
@@ -108,6 +125,10 @@ IMPORTANT: Respond ONLY with the precise knowledgebase query, nothing else.
 
 
 def merge_chunks(chunks, reranked):
+    """
+    Merges two lists of retrieved chunks (e.g., from original and rewritten queries),
+    ensuring that there are no duplicate chunks based on their text content.
+    """
     merged = chunks[:]
     existing = [chunk.page_content for chunk in chunks]
     for chunk in reranked:
@@ -117,6 +138,10 @@ def merge_chunks(chunks, reranked):
 
 
 def fetch_context_unranked(question):
+    """
+    Embeds the user's question and retrieves the top K most similar chunks 
+    from the local ChromaDB vector store.
+    """
     query = openai.embeddings.create(model=embedding_model, input=[question]).data[0].embedding
     results = collection.query(query_embeddings=[query], n_results=RETRIEVAL_K)
     chunks = []
@@ -126,6 +151,14 @@ def fetch_context_unranked(question):
 
 
 def fetch_context(original_question):
+    """
+    Coordinates the full retrieval pipeline:
+    1. Rewrites the user query for better search term matching.
+    2. Retrieves raw chunks for both the original and rewritten queries.
+    3. Merges the results to remove duplicates.
+    4. Re-ranks the combined chunks using the LLM for relevance.
+    5. Returns the top FINAL_K chunks.
+    """
     rewritten_question = rewrite_query(original_question)
     chunks1 = fetch_context_unranked(original_question)
     chunks2 = fetch_context_unranked(rewritten_question)

@@ -1,7 +1,7 @@
 import gradio as gr
 from dotenv import load_dotenv
 
-from implementation.answer import answer_question
+from pro_implementation.answer import answer_question
 
 load_dotenv(override=True)
 
@@ -47,11 +47,11 @@ def main():
 
             1.  **Ingest Data:** Run the ingestion script to build the vector database:
                 ```bash
-                uv run implementation/ingest.py
+                uv run ./pro_implementation/ingest.py
                 ```
             2.  **Start the App:** Launch this interface:
                 ```bash
-                uv run app.py
+                uv run ./app.py
                 ```
             """)
 
