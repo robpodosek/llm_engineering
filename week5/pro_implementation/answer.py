@@ -104,10 +104,13 @@ def make_rag_messages(question, history, chunks):
 
 
 @retry(wait=wait)
-def rewrite_query(question, history=[]):
+def rewrite_query(question, history=None):
     """Rewrite the user's question to be a more specific question that is more likely to surface relevant content in the Knowledge Base."""
+    if history is None:
+        history = []
+
     message = f"""
-You are in a conversation with a user, answering questions about the company Insurellm.
+You are in a conversation with a user.
 You are about to look up information in a Knowledge Base to answer the user's question.
 
 This is the history of your conversation so far with the user:
@@ -116,8 +119,15 @@ This is the history of your conversation so far with the user:
 And this is the user's current question:
 {question}
 
-Respond only with a short, refined question that you will use to search the Knowledge Base.
-It should be a VERY short specific question most likely to surface content. Focus on the question details.
+Since the conversation is contextual, understand the meaning of the user question and add details based on the history.
+Condense everything in a single contextually-rich VERY short and specific question, most likely to surface content.
+
+EXAMPLE:
+user: Who is the founder? -> Query: who is the founder?
+assistant: The founder is FooBar
+user: What role covers? -> Query: What role FooBar covers?
+...
+
 IMPORTANT: Respond ONLY with the precise knowledgebase query, nothing else.
 """
     response = completion(model=MODEL, messages=[{"role": "system", "content": message}])
@@ -150,16 +160,9 @@ def fetch_context_unranked(question):
     return chunks
 
 
-def fetch_context(original_question):
-    """
-    Coordinates the full retrieval pipeline:
-    1. Rewrites the user query for better search term matching.
-    2. Retrieves raw chunks for both the original and rewritten queries.
-    3. Merges the results to remove duplicates.
-    4. Re-ranks the combined chunks using the LLM for relevance.
-    5. Returns the top FINAL_K chunks.
-    """
-    rewritten_question = rewrite_query(original_question)
+def fetch_context(original_question, history=None):
+    rewritten_question = rewrite_query(original_question, history)
+    print(rewritten_question)
     chunks1 = fetch_context_unranked(original_question)
     chunks2 = fetch_context_unranked(rewritten_question)
     chunks = merge_chunks(chunks1, chunks2)
@@ -172,7 +175,7 @@ def answer_question(question: str, history: list[dict] = []) -> tuple[str, list]
     """
     Answer a question using RAG and return the answer and the retrieved context
     """
-    chunks = fetch_context(question)
+    chunks = fetch_context(question, history)
     messages = make_rag_messages(question, history, chunks)
     response = completion(model=MODEL, messages=messages)
     return response.choices[0].message.content, chunks
